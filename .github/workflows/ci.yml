@@ -1,6 +1,7 @@
 name: CI
 
-on: [push, pull_request]
+  #on: [push, pull_request]
+on: workflow_dispatch
 
 jobs:
   build:
@@ -15,8 +16,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r {{ cookiecutter.project_slug }}/requirements.txt
+          pip install -r /root/cookiecutter-golden-path/{{ cookiecutter.project_slug }}/requirements.txt
 
       - name: Run Tests
         run: |
-          pytest {{ cookiecutter.project_slug }}/tests
+          pytest /root/cookiecutter-golden-path/{{ cookiecutter.project_slug }}/tests
