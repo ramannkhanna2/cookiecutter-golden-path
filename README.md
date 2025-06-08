@@ -1,1 +1,0 @@
-# cookiecutter-golden-path
