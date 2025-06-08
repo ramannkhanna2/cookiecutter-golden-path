@@ -1,23 +1,60 @@
-name: CI
+name: CI Pipeline
 
-on: [push, pull_request]
-#on: workflow_dispatch
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build:
+  lint-test-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install -r /root/cookiecutter-golden-path/{{ cookiecutter.project_slug }}/requirements.txt
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install bandit cyclonedx-bom
 
-      - name: Run Tests
+      - name: Run Unit Tests
         run: |
-          pytest /root/cookiecutter-golden-path/{{ cookiecutter.project_slug }}/tests
+          pytest tests/
+
+      - name: Run Bandit (SAST Security Scan)
+        run: |
+          bandit -r app -f json -o bandit-report.json || true
+
+      - name: Generate SBOM (CycloneDX)
+        run: cyclonedx-py -o sbom.json
+
+  docker-build-push:
+    needs: lint-test-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/raman-micro:latest
+
